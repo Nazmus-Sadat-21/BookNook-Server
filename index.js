@@ -89,6 +89,41 @@ app.delete("/books/:id", async (req,res)=>{
   res.json(result);
 })
 
+// app.patch("/books/:id",  async (req, res) => {
+//   const { id } = req.params;
+//   const data = req.body;
+//   const result = await AllBooks.updateOne(
+//     { _id: new ObjectId(id) },
+//     { $set: data },
+//   );
+//   res.json(result);
+// });
+
+app.patch("/books/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid book ID format" });
+    }
+
+    const { _id, ...updatedData } = req.body;
+
+    const result = await AllBooks.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updatedData }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, message: "Book not found" });
+    }
+
+    res.status(200).json({ success: true, result });
+  } catch (error) {
+    console.error("Backend error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 
 app.listen(port, () => {
