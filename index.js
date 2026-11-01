@@ -1,5 +1,5 @@
 import express from "express";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import "dotenv/config";
 import cors from "cors";
 const app = express();
@@ -24,11 +24,11 @@ app.use(cors());
 app.use(express.json());
 
 //http://localhost:800/
-//http://localhost:800/add-book
-//http://localhost:800/books
-//http://localhost:800/books/:id
-//http://localhost:800/my-books
-//http://localhost:800/my-borrows
+//http://localhost:8000/add-book
+//http://localhost:8000/books
+//http://localhost:8000/books/:id
+//http://localhost:8000/my-books
+//http://localhost:8000/my-borrows
 
 // const verifyToken = async (req, res, next) => {
 //   const authHeader = req.headers.authorization;
@@ -52,16 +52,31 @@ app.use(express.json());
 //   }
 // };
 
-app.post("/add-book", async (re, res) => {
-  const data = req.boy;
+app.post("/add-book", async (req, res) => {
+  const data = req.body;
   const result = await AllBooks.insertOne(data);
   res.send(result);
 });
 
 app.get("/books", async (req, res) => {
- const result = await AllBooks.find().toArray();
- res.send(result);
+try {
+    const result = await AllBooks.find().toArray();
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ message: "Failed to fetch books" });
+  }
 });
+
+app.get("/books/:id", async (req,res)=>{
+  const {id}  = req.params;
+  const result = await AllBooks.findOne({
+    _id : new ObjectId(id)
+  })
+  res.send(result)
+})
+
+
+
 
 app.listen(port, () => {
   console.log(`server is running at http://localhost:${port}/`);
