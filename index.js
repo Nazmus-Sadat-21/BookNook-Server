@@ -75,6 +75,11 @@ app.get("/books/:id", async (req,res)=>{
   res.send(result)
 })
 
+app.get("/my-books/:email", async (req,res)=>{
+  const {email} = req.params;
+  const result = await AllBooks.find({email: email}).toArray()
+  res.send(result)
+})
 
 
 
