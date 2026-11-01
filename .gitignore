@@ -43,3 +43,4 @@ build/Release
 *.njsproj
 *.sln
 *.sw?
+.vercel
