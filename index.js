@@ -29,6 +29,7 @@ app.use(express.json());
 //http://localhost:8000/books/:id
 //http://localhost:8000/my-books
 //http://localhost:8000/my-borrows
+//http://localhost:8000//featured-books
 
 // const verifyToken = async (req, res, next) => {
 //   const authHeader = req.headers.authorization;
@@ -124,6 +125,11 @@ app.patch("/books/:id", async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+app.get("/featured-books", async (req,res)=>{
+  const result = await AllBooks.find().sort({ createdAt: -1 }).limit(6).toArray()
+  res.send(result)
+})
 
 
 app.listen(port, () => {
