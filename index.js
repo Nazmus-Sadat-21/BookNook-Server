@@ -19,6 +19,7 @@ const mongoClient = await connectToMongoDB();
 const db = await mongoClient.db("BookNook");
 
 const AllBooks = db.collection("Books");
+const AllBorrows = db.collection("Borrows");
 
 app.use(cors());
 app.use(express.json());
@@ -29,6 +30,9 @@ app.use(express.json());
 //http://localhost:8000/books/:id
 //http://localhost:8000/my-books
 //http://localhost:8000/my-borrows
+//http://localhost:8000/my-borrows/:email
+//http://localhost:8000/add-borrows
+//http://localhost:8000//borrows/:id
 //http://localhost:8000//featured-books
 
 // const verifyToken = async (req, res, next) => {
@@ -90,15 +94,8 @@ app.delete("/books/:id", async (req,res)=>{
   res.json(result);
 })
 
-// app.patch("/books/:id",  async (req, res) => {
-//   const { id } = req.params;
-//   const data = req.body;
-//   const result = await AllBooks.updateOne(
-//     { _id: new ObjectId(id) },
-//     { $set: data },
-//   );
-//   res.json(result);
-// });
+
+
 
 app.patch("/books/:id", async (req, res) => {
   try {
@@ -130,6 +127,77 @@ app.get("/featured-books", async (req,res)=>{
   const result = await AllBooks.find().sort({ createdAt: -1 }).limit(6).toArray()
   res.send(result)
 })
+
+
+
+app.post("/add-borrows", async (req, res) => {
+  try {
+    const { bookId, bookTitle, bookCover, userEmail, userName, borrowDate, returnDate } = req.body;
+
+    if (!bookId || !userEmail) {
+      return res.status(400).json({ message: "Book ID and User Email are required." });
+    }
+
+    // 1. Prevent duplicate borrow by the same user
+    const existingBorrow = await AllBooks.findOne({ bookId, userEmail });
+    if (existingBorrow) {
+      return res.status(400).json({ message: "You have already borrowed this book." });
+    }
+
+    // 2. Insert into borrows collection
+    const newBorrow = {
+      bookId,
+      bookTitle,
+      bookCover,
+      userEmail,
+      userName,
+      borrowDate: new Date(borrowDate),
+      returnDate: new Date(returnDate),
+      createdAt: new Date(),
+    };
+
+    const result = await AllBorrows.insertOne(newBorrow);
+
+    // 3. Optional: Decrement available copies count in the AllBooks collection
+    await AllBooks.updateOne(
+      { _id: new ObjectId(bookId) },
+      { $inc: { copies: -1 } }
+    );
+
+    res.status(201).json({ success: true, result });
+  } catch (error) {
+    console.error("Error adding borrow record:", error);
+    res.status(500).json({ message: "Server error while creating borrow record." });
+  }
+});
+
+app.get("/my-borrows/:email", async (req,res)=>{
+  const {email} = req.params;
+  const result = await AllBorrows.find({userEmail: email}).toArray()
+  res.send(result)
+})
+
+app.delete("/borrows/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const borrowRecord = await AllBorrows.findOne({ _id: new ObjectId(id) });
+    
+    const result = await AllBorrows.deleteOne({ _id: new ObjectId(id) });
+
+    if (borrowRecord.bookId) {
+      await AllBooks.updateOne(
+        { _id: new ObjectId(borrowRecord.bookId) },
+        { $inc: { copies: 1 } }
+      );
+    }
+
+    res.status(200).json({ success: true, result });
+  } catch (error) {
+    console.error("Error returning book:", error);
+    res.status(500).json({ success: false, message: "Server error while returning book" });
+  }
+});
 
 
 app.listen(port, () => {
