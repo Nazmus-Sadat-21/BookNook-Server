@@ -2,6 +2,7 @@ import express from "express";
 import { MongoClient, ObjectId } from "mongodb";
 import "dotenv/config";
 import cors from "cors";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 const app = express();
 const port = process.env.PORT;
 
@@ -28,36 +29,37 @@ app.use(express.json());
 //http://localhost:8000/add-book
 //http://localhost:8000/books
 //http://localhost:8000/books/:id
-//http://localhost:8000/my-books
+//http://localhost:8000/my-books:email
 //http://localhost:8000/my-borrows
 //http://localhost:8000/my-borrows/:email
 //http://localhost:8000/add-borrows
 //http://localhost:8000//borrows/:id
 //http://localhost:8000//featured-books
 
-// const verifyToken = async (req, res, next) => {
-//   const authHeader = req.headers.authorization;
-//   if (!authHeader) {
-//     return res.status(401).send({ msg: "Unauthorized!" });
-//   }
-//   const token = authHeader.split(" ")[1];
-//   if (!token) {
-//     return res.status(401).send({ msg: "Unauthorized!" });
-//   }
+const verifyToken = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send({ msg: "Unauthorized!" });
+  }
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({ msg: "Unauthorized!" });
+  }
 
-//   const JWKS = createRemoteJWKSet(
-//     new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),
-//   );
+  const JWKS = createRemoteJWKSet(
+    new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),
+  );
 
-//   try {
-//     const { payload } = await jwtVerify(token, JWKS);
-//     next();
-//   } catch (error) {
-//     return res.status(500).send({ msg: "Server Error!" });
-//   }
-// };
+  try {
+    const { payload } = await jwtVerify(token, JWKS);
+    console.log(payload)
+    next();
+  } catch (error) {
+    return res.status(500).send({ msg: "Server Error!" });
+  }
+};
 
-app.post("/add-book", async (req, res) => {
+app.post("/add-book", verifyToken, async (req, res) => {
   const data = req.body;
   const result = await AllBooks.insertOne(data);
   res.send(result);
@@ -72,7 +74,7 @@ try {
   }
 });
 
-app.get("/books/:id", async (req,res)=>{
+app.get("/books/:id", verifyToken, async (req,res)=>{
   const {id}  = req.params;
   const result = await AllBooks.findOne({
     _id : new ObjectId(id)
@@ -80,13 +82,13 @@ app.get("/books/:id", async (req,res)=>{
   res.send(result)
 })
 
-app.get("/my-books/:email", async (req,res)=>{
+app.get("/my-books/:email", verifyToken, async (req,res)=>{
   const {email} = req.params;
   const result = await AllBooks.find({contributorEmail: email}).toArray()
   res.send(result)
 })
 
-app.delete("/books/:id", async (req,res)=>{
+app.delete("/books/:id",verifyToken, async (req,res)=>{
   const { id } = req.params;
   const result = await AllBooks.deleteOne({
     _id: new ObjectId(id),
@@ -97,7 +99,7 @@ app.delete("/books/:id", async (req,res)=>{
 
 
 
-app.patch("/books/:id", async (req, res) => {
+app.patch("/books/:id", verifyToken,  async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -130,7 +132,7 @@ app.get("/featured-books", async (req,res)=>{
 
 
 
-app.post("/add-borrows", async (req, res) => {
+app.post("/add-borrows", verifyToken, async (req, res) => {
   try {
     const { bookId, bookTitle, bookCover, userEmail, userName, borrowDate, returnDate } = req.body;
 
@@ -171,13 +173,13 @@ app.post("/add-borrows", async (req, res) => {
   }
 });
 
-app.get("/my-borrows/:email", async (req,res)=>{
+app.get("/my-borrows/:email", verifyToken,async (req,res)=>{
   const {email} = req.params;
   const result = await AllBorrows.find({userEmail: email}).toArray()
   res.send(result)
 })
 
-app.delete("/borrows/:id", async (req, res) => {
+app.delete("/borrows/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
 
