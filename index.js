@@ -152,7 +152,6 @@ app.post("/add-borrows", verifyToken, async (req, res) => {
         .json({ message: "Book ID and User Email are required." });
     }
 
-    // 1. Prevent duplicate borrow by the same user
     const existingBorrow = await AllBooks.findOne({ bookId, userEmail });
     if (existingBorrow) {
       return res
@@ -160,7 +159,7 @@ app.post("/add-borrows", verifyToken, async (req, res) => {
         .json({ message: "You have already borrowed this book." });
     }
 
-    // 2. Insert into borrows collection
+  
     const newBorrow = {
       bookId,
       bookTitle,
@@ -174,7 +173,6 @@ app.post("/add-borrows", verifyToken, async (req, res) => {
 
     const result = await AllBorrows.insertOne(newBorrow);
 
-    // 3. Optional: Decrement available copies count in the AllBooks collection
     await AllBooks.updateOne(
       { _id: new ObjectId(bookId) },
       { $inc: { copies: -1 } },
@@ -222,3 +220,5 @@ app.delete("/borrows/:id", verifyToken, async (req, res) => {
 app.listen(port, () => {
   console.log(`server is running at http://localhost:${port}/`);
 });
+
+export default app;
