@@ -59,6 +59,10 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
+app.get("/",(req,res)=>{
+  res.send("Backend Server ")
+})
+
 app.post("/add-book", verifyToken, async (req, res) => {
   const data = req.body;
   const result = await AllBooks.insertOne(data);
