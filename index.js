@@ -24,14 +24,15 @@ const db = mongoClient ? mongoClient.db("BookNook") : null;
 
 const AllBooks = db ? db.collection("Books") : null;
 const AllBorrows = db ? db.collection("Borrows") : null;
+const AllUsers = db ? db.collection("user") : null; // or whatever your user collection name is
 
 app.use(cors({
-  origin: true, // Or specify your frontend production URL
+  origin: true, 
   credentials: true,
 }));
 app.use(express.json());
 
-// Token verification middleware
+
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -173,7 +174,6 @@ app.post("/add-borrows", verifyToken, async (req, res) => {
       return res.status(400).json({ message: "Book ID and User Email are required." });
     }
 
-    // FIXED: Check against AllBorrows collection instead of AllBooks
     const existingBorrow = await AllBorrows.findOne({ bookId, userEmail });
     if (existingBorrow) {
       return res.status(400).json({ message: "You have already borrowed this book." });
@@ -242,8 +242,58 @@ app.delete("/borrows/:id", verifyToken, async (req, res) => {
   }
 });
 
+
+
+
+app.get("/top-contributors", async (req, res) => {
+  try {
+    if (!AllBooks) {
+      return res.status(500).json({ message: "Database collection not available" });
+    }
+
+    // 1. Fetch all books that have a contributor email
+    const books = await AllBooks.find({ contributorEmail: { $ne: null } }).toArray();
+
+    // 2. Count book occurrences per email using a JavaScript object (dictionary)
+    const countsMap = {};
+    for (const book of books) {
+      const email = book.contributorEmail;
+      if (email) {
+        countsMap[email] = (countsMap[email] || 0) + 1;
+      }
+    }
+
+    // 3. Convert the map into an array of objects, sort by bookCount descending, and take top 3
+    const sortedContributors = Object.entries(countsMap)
+      .map(([email, bookCount]) => ({ email, bookCount }))
+      .sort((a, b) => b.bookCount - a.bookCount)
+      .slice(0, 3);
+
+    // 4. Enrich the top 3 with user profile info (name, image) from your User collection
+    const enrichedContributors = await Promise.all(
+      sortedContributors.map(async (item) => {
+        const userDoc = AllUsers ? await AllUsers.findOne({ email: item.email }) : null;
+
+        return {
+          email: item.email,
+          name: userDoc?.name || userDoc?.fullName || "Anonymous Reader",
+          image: userDoc?.image || userDoc?.photoURL || null,
+          bookCount: item.bookCount
+        };
+      })
+    );
+
+    res.status(200).json(enrichedContributors);
+  } catch (error) {
+    console.error("Failed to fetch top contributors:", error);
+    res.status(500).json({ message: "Failed to fetch top contributors" });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}/`);
 });
 
 export default app;
+
+
