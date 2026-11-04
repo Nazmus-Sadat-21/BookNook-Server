@@ -251,10 +251,9 @@ app.get("/top-contributors", async (req, res) => {
       return res.status(500).json({ message: "Database collection not available" });
     }
 
-    // 1. Fetch all books that have a contributor email
     const books = await AllBooks.find({ contributorEmail: { $ne: null } }).toArray();
 
-    // 2. Count book occurrences per email using a JavaScript object (dictionary)
+  
     const countsMap = {};
     for (const book of books) {
       const email = book.contributorEmail;
@@ -263,13 +262,11 @@ app.get("/top-contributors", async (req, res) => {
       }
     }
 
-    // 3. Convert the map into an array of objects, sort by bookCount descending, and take top 3
     const sortedContributors = Object.entries(countsMap)
       .map(([email, bookCount]) => ({ email, bookCount }))
       .sort((a, b) => b.bookCount - a.bookCount)
       .slice(0, 3);
 
-    // 4. Enrich the top 3 with user profile info (name, image) from your User collection
     const enrichedContributors = await Promise.all(
       sortedContributors.map(async (item) => {
         const userDoc = AllUsers ? await AllUsers.findOne({ email: item.email }) : null;
